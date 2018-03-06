@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 #include <QLineEdit>
+#include <iostream>
+#include "qdebug.h"
+#include <QtMath>
 
 namespace Ui {
 class MainWindow;
@@ -42,10 +45,33 @@ private slots:
 private:
     Ui::MainWindow *ui;
     QList<QLineEdit*> lineedit_list;
+    static const int dimension = 3;
+    QString map[dimension][dimension];
 
     void updateUILineEditRegex();
     void disabledAllLineEdit(bool condition);
     void autoFocus();
+    void mapToMat();
+    void printMatToConsole();
+    void movePToXY(QString p, int x, int y);
+
+
+    struct coord {
+        int x = 0;
+        int y = 0;
+    };
+
+    void moveBlankAboveP(struct coord p_coord, int x_direction);
+    void moveBlankLeftP(struct coord p_coord);
+    struct coord findPCoord(QString p);
+    int hammingDistance(struct coord a, struct coord b);
+    void switchBlankToUpper(struct coord blank_coord);
+    void switchBlankToLeft(struct coord blank_coord);
+    void switchBlankToRight(struct coord blank_coord);
+    void switchBlankToUnder(struct coord blank_coord);
+
+
+    void switchBlankWithP(QString p);
 };
 
 #endif // MAINWINDOW_H
