@@ -62,7 +62,7 @@ private:
     };
 
     void moveBlankAboveP(struct coord p_coord, int x_direction);
-    void moveBlankLeftP(struct coord p_coord);
+    void moveBlankLeftP(struct coord p_coord, int x_direction);
     struct coord findPCoord(QString p);
     int hammingDistance(struct coord a, struct coord b);
     void switchBlankToUpper(struct coord blank_coord);

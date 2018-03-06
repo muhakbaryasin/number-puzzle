@@ -220,18 +220,21 @@ void MainWindow::movePToXY(QString p, int x, int y)
     int x_direction = p_coord.x - x;
 
     if (p_coord.y > y) {
-        std::cout << "masuk sini" << std::endl;
         this->moveBlankAboveP(p_coord, x_direction);
+        this->switchBlankWithP(p);
+        p_coord = this->findPCoord(p);
     }
 
     std::cout << "x_direction -> " << x_direction << std::endl;
 
-    if (x_direction > 0) {
-        std::cout << "masuk sana" << std::endl;
-        this->moveBlankLeftP(p_coord);
+    if (p_coord.x > x) {
+        if (x_direction > 0) {
+            this->moveBlankLeftP(p_coord, x_direction);
+            this->switchBlankWithP(p);
+            p_coord = this->findPCoord(p);
+        }
     }
 
-    this->switchBlankWithP(p);
     this->movePToXY(p, x, y);
 }
 
@@ -245,26 +248,31 @@ void MainWindow::moveBlankAboveP(coord p_coord, int x_direction)
     temp_.x = p_coord.x;
     temp_.y = p_coord.y - 1;
 
+    // kalo si blank ada dibaris bawah 1 baris atasnya si P
+    // intinya kalo si blank blm di garis y tepat atasnya si P bakal masuk sini
     if (blank_coord.y > temp_.y) {
+        // kalo si blank tepat di bawahnya si P
         if (blank_coord.x == p_coord.x) {
             if (x_direction > 0)
                 this->switchBlankToLeft(blank_coord);
            else this->switchBlankToRight(blank_coord);
         } else {
+            // yang ini mah si blank tinggal k atas sampe nanti sejajar dgn atasnya si P
             this->switchBlankToUpper(blank_coord);
         }
+        // recursive biar sampe sejajar
         this->moveBlankAboveP(p_coord, x_direction);
     }
 
+    // di sini si blank udah sejajar dgn baris atasnya si P, tinggal nyari kotak tepat di atasnya
+    // jadi tinggal ke kiri atau kanan
     blank_coord = this->findPCoord(" ");
     int tmp_x_direction = blank_coord.x - temp_.x;
 
-    // x_direction < 0 berarti ke kanan
+    // klo si blank udah tepat di atas maka tmp_x_direction = 0
     if (tmp_x_direction == 0) {
         return;
-    }
-
-    if (tmp_x_direction < 0) {
+    } else if (tmp_x_direction < 0) {
         this->switchBlankToRight(blank_coord);
     } else if (tmp_x_direction > 0) {
         this->switchBlankToLeft(blank_coord);
@@ -273,24 +281,40 @@ void MainWindow::moveBlankAboveP(coord p_coord, int x_direction)
     this->moveBlankAboveP(p_coord, x_direction);
 }
 
-void MainWindow::moveBlankLeftP(MainWindow::coord p_coord)
+void MainWindow::moveBlankLeftP(MainWindow::coord p_coord, int x_direction)
 {
-    // std::cout << "moveBlankLeftP\n";
+    std::cout << "moveBlankLeftP\n";
     coord blank_coord = this->findPCoord(" ");
     std::cout << "blank x,y -> " << blank_coord.x << "," << blank_coord.y << std::endl;
 
-    coord temp_;
-    temp_.x = p_coord.x - 1;
-    temp_.y = p_coord.y;
-
-    if (blank_coord.y > temp_.y) {
-        if (blank_coord.x == p_coord.x) {
-            this->switchBlankToLeft(blank_coord);
+    if (blank_coord.x > p_coord.x - 1) {
+        if (blank_coord.y == p_coord.y) {
+            this->switchBlankToUnder(blank_coord);
         } else {
-            this->switchBlankToUpper(blank_coord);
+            this->switchBlankToLeft(blank_coord);
         }
-        this->moveBlankLeftP(p_coord);
+        // this->moveBlankLeftP(p_coord, x_direction);
+    } else if (blank_coord.x < p_coord.x -1 ) {
+        if (blank_coord.y == p_coord.y) {
+            this->switchBlankToUnder(blank_coord);
+        } else {
+            this->switchBlankToRight(blank_coord);
+        }
     }
+
+    blank_coord = this->findPCoord(" ");
+    int tmp_y_direction = blank_coord.y - p_coord.y;
+
+    // klo si blank udah tepat di kiri maka tmp_y_direction = 0
+    if (tmp_y_direction == 0) {
+        return;
+    } else if (tmp_y_direction < 0) {
+        this->switchBlankToUnder(blank_coord);
+    } else if (tmp_y_direction > 0) {
+        this->switchBlankToUpper(blank_coord);
+    }
+
+    this->moveBlankLeftP(p_coord, x_direction);
 }
 
 void MainWindow::switchBlankToUpper(MainWindow::coord blank_coord)
