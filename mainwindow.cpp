@@ -89,6 +89,10 @@ void MainWindow::on_lineEdit_9_textChanged()
 
 void MainWindow::on_pushButton_2_clicked()
 {
+    history.clear();
+    memset(locked, false, sizeof(locked));
+    //memset(locked, false, sizeof(locked));
+
     int list_len = this->lineedit_list.length();
 
     for (int iter=0; iter < list_len; iter++)
@@ -140,9 +144,7 @@ void MainWindow::autoFocus()
             this->lineedit_list.at(iter)->setFocus();
             return;
         }
-
     }
-
 }
 
 void MainWindow::mapToMat()
@@ -160,23 +162,64 @@ void MainWindow::mapToMat()
 void MainWindow::printMatToConsole()
 {
     int inc_ = 0;
+    unsigned int msleep = 1;
+    QString order = "";
 
     for(int i = 0; i < this->dimension; i++) {
         for(int j = 0; j < this->dimension; j++) {
             std::cout << this->map[j][i].toStdString() << " ";
+            order += this->map[j][i];
             this->lineedit_list.at(inc_)->setText(map[j][i]);
+            this->lineedit_list.at(inc_)->repaint();
             inc_++;
         }
         std::cout << std::endl;
     }
+    history.append(order);
     std::cout << "========================================================\n" << std::endl;
+    sleep(msleep);
+    qApp->processEvents();
+
 }
 
 void MainWindow::on_pushButton_clicked()
 {
     this->mapToMat();
     this->printMatToConsole();
+    blank = this->findPCoord(" ");
     this->movePToXY("1", 0, 0);
+    this->lockCoord(0,0);
+    this->movePToXY("2", 1, 2);
+    this->movePToXY("3", 1, 0);
+    this->movePToXY("2", 1, 1);
+    this->lockCoord(1,0);
+    this->lockCoord(1,1);
+    this->moveBlankToXY(2, 0);
+    this->movePToXY("3", 2, 0);
+    this->movePToXY("2", 1, 0);
+    this->lockCoord(2,0);
+    this->unlockCoord(1,1);
+    // step 1 selesai
+
+    //this->movePToXY("5", 2, 2);
+    this->movePToXY("7", 0, 1);
+    this->movePToXY("4", 1, 1);
+    this->movePToXY("7", 0, 1);
+    this->lockCoord(0, 1);
+    this->movePToXY("4", 1, 1);
+    //this->lockCoord(1, 1);
+    this->moveBlankToXY(0, 2);
+    this->unlockCoord(0, 1);
+    this->movePToXY("7", 0, 2);
+    this->movePToXY("4", 0, 1);
+    this->lockCoord(0, 1);
+    this->movePToXY("8", 1, 1);
+    this->movePToXY("5", 2, 1);
+    this->movePToXY("8", 1, 1);
+    //this->moveBlankToXY(1, 2);
+    this->movePToXY("8", 1, 2);
+    this->movePToXY("5", 1, 1);
+    this->movePToXY("6", 2, 1);
     // 1 in the right place
 }
 
@@ -203,196 +246,428 @@ MainWindow::coord MainWindow::findPCoord(QString p)
 
 int MainWindow::hammingDistance(MainWindow::coord a, MainWindow::coord b)
 {
-    return qFabs(a.x - b.x) + qFabs(a.y - b.y);
+    int distance;
+    if (this->coordIsPossible(a) && this->coordIsPossible(b)) {
+        distance = qFabs(a.x - b.x) + qFabs(a.y - b.y);
+        if (a.x == b.x == P.x || a.y == b.y == P.y)
+            distance += 1;
+    } else
+        distance = 1000000;
+    std::cout << "(" << a.x << "," << a.y << ") -> ";
+    std::cout << "(" << b.x << "," << b.y << ") : "<< distance << "\n" ;
+    return distance;
+}
+
+bool MainWindow::coordIsPossible(MainWindow::coord c)
+{
+    if (c.x < 0 || c.x > 2 || c.y < 0 || c.y > 2)
+        return false;
+
+    if (c.x == P.x && c.y == P.y)
+        return false;
+
+    return true;
 }
 
 void MainWindow::movePToXY(QString p, int x, int y)
 {
-    std::cout << "movePToXY\n";
-    coord p_coord = this->findPCoord(p);
+    std::cout << "movePToXY" << std::endl;
+    P = this->findPCoord(p);
 
-    if (p_coord.x == x && p_coord.y == y)
+    if (P.x == x && P.y == y) {
+        std::cout << "fin." << std::endl;
         return;
-
-    std::cout << p.toStdString() << " (x,y) -> " << p_coord.x << "," << p_coord.y << std::endl;
-    std::cout << "mau ke (x,y) " << x << "," << y << std::endl;
-
-    int x_direction = p_coord.x - x;
-
-    if (p_coord.y > y) {
-        this->moveBlankAboveP(p_coord, x_direction);
-        this->switchBlankWithP(p);
-        p_coord = this->findPCoord(p);
     }
 
-    std::cout << "x_direction -> " << x_direction << std::endl;
+    coord above_p = P, left_p = P, under_p = P, right_p = P;
+    above_p.y = above_p.y - 1;
+    left_p.x = left_p.x - 1;
+    under_p.y = under_p.y + 1;
+    right_p.x = right_p.x + 1;
 
-    if (p_coord.x > x) {
-        if (x_direction > 0) {
-            this->moveBlankLeftP(p_coord, x_direction);
-            this->switchBlankWithP(p);
-            p_coord = this->findPCoord(p);
+    std::cout << p.toStdString() << " (x,y) -> " << P.x << "," << P.y << std::endl;
+    std::cout << "mau ke (x,y) " << x << "," << y << std::endl;
+
+    if (P.x == x && P.y > y) {
+        // P mau ke atas
+        this->moveBlankAboveP();
+        this->swapBlankWithP();
+    } else if (P.x == x && P.y < y) {
+        // P mau ke bawah
+        this->moveBlankUnderP();
+        this->swapBlankWithP();
+    } else if (P.x > x && P.y == y) {
+        // P mau ke kiri
+        this->moveBlankLeftP();
+        this->swapBlankWithP();
+    } else if (P.x < x && P.y == y) {
+        // P mau ke kanan
+        this->moveBlankRightP();
+        this->swapBlankWithP();
+    } else if (P.x > x && P.y > y) {
+        std::cout << "masuk sini gak\n";
+        // P mau pindah ke arah kiri atas
+        // pilih mau ke arah kiri atau atas dulu
+        if (this->hammingDistance(blank, above_p) <= this->hammingDistance(blank, left_p)) {
+            // ini ke atas
+            this->moveBlankAboveP();
+            this->swapBlankWithP();
+        } else {
+            // ini ke kiri
+            this->moveBlankLeftP();
+            this->swapBlankWithP();
+        }
+    } else if (P.x > x && P.y < y) {
+        std::cout << "masuk sini gak\n";
+        // P mau pindah ke arah kiri atas
+        // pilih mau ke arah kiri atau atas dulu
+        if (this->hammingDistance(blank, under_p) <= this->hammingDistance(blank, left_p)) {
+            // ini ke atas
+            this->moveBlankUnderP();
+            this->swapBlankWithP();
+        } else {
+            // ini ke kiri
+            this->moveBlankLeftP();
+            this->swapBlankWithP();
+        }
+    } else if (P.x < x && P.y < y) {
+        // P mau pindah ke arah kanan bawah
+        // pilih mau ke arah kanan atau bawah dulu
+        if (this->hammingDistance(blank, under_p) <= this->hammingDistance(blank, right_p)) {
+            // ini ke bawah
+            this->moveBlankUnderP();
+            this->swapBlankWithP();
+        } else {
+            // ini ke kanan
+            this->moveBlankRightP();
+            this->swapBlankWithP();
+        }
+    } else if (P.x < x && P.y > y) {
+        // P mau pindah ke arah kanan atas
+        // pilih mau ke arah kanan atau atas dulu
+        if (this->hammingDistance(blank, above_p) <= this->hammingDistance(blank, right_p)) {
+            // ini ke atas
+            this->moveBlankAboveP();
+            this->swapBlankWithP();
+        } else {
+            // ini ke kanan
+            this->moveBlankRightP();
+            this->swapBlankWithP();
         }
     }
 
+    // recursive
     this->movePToXY(p, x, y);
 }
 
-void MainWindow::moveBlankAboveP(coord p_coord, int x_direction)
+void MainWindow::moveBlankToXY(int x, int y)
+{
+    std::cout << "moveBlankToXY\n";
+    std::cout << "blank x,y -> " << blank.x << "," << blank.y << std::endl;
+
+    if (blank.x == x && blank.y == y)
+        return;
+
+    QList <struct possible_move> pbm = this->blankPossibleMoveTo(x, y);
+
+    for (int i = 0; i < pbm.length(); i++ ) {
+        if (pbm.at(i).num == 1)
+            this->swapBlankToUpper();
+        else if (pbm.at(i).num == 2)
+            this->swapBlankToUnder();
+        else if (pbm.at(i).num == 3)
+            this->swapBlankToLeft();
+        else if (pbm.at(i).num == 4)
+            this->swapBlankToRight();
+        break;
+    }
+    this->moveBlankToXY(x, y);
+}
+
+QList<MainWindow::possible_move> MainWindow::blankPossibleMoveTo(int x, int y)
+{
+    QList<struct possible_move> priority_direction;
+
+    coord T;
+    T.x = x;
+    T.y = y;
+
+    coord tmp = blank;
+    tmp.y = tmp.y - 1;
+
+    if (this->coordIsPossible(tmp) && swapBlankIsValid(tmp.x, tmp.y) && !locked[tmp.x][tmp.y]) {
+        possible_move up;
+        up.num = 1;
+        up.distance = this->hammingDistance(tmp, T);
+        //std::cout << "up : " << up.distance << std::endl;
+        priority_direction.append(up);
+    }
+
+    tmp = blank;
+    tmp.y = tmp.y + 1;
+
+    if (this->coordIsPossible(tmp) && swapBlankIsValid(tmp.x, tmp.y) && !locked[tmp.x][tmp.y]) {
+        possible_move down;
+        down.num = 2;
+        down.distance = this->hammingDistance(tmp, T);
+        priority_direction.append(down);
+    }
+
+    tmp = blank;
+    tmp.x = tmp.x - 1;
+
+    if (this->coordIsPossible(tmp) && swapBlankIsValid(tmp.x, tmp.y) && !locked[tmp.x][tmp.y]) {
+        possible_move left;
+        left.num = 3;
+        left.distance = this->hammingDistance(tmp, T);
+        priority_direction.append(left);
+    }
+
+    tmp = blank;
+    tmp.x = tmp.x + 1;
+
+    if (this->coordIsPossible(tmp) && swapBlankIsValid(tmp.x, tmp.y) && !locked[tmp.x][tmp.y]) {
+        possible_move right;
+        right.num = 4;
+        right.distance = this->hammingDistance(tmp, T);
+        priority_direction.append(right);
+    }
+
+    if (priority_direction.length() < 1) {
+        this->deleteHistoryB4();
+        this->blankPossibleMoveTo(x, y);
+    }
+
+    for (int i=0; i < priority_direction.length(); i++) {
+        for (int j=0; j < priority_direction.length(); j++) {
+            if (priority_direction.at(j).distance > priority_direction.at(i).distance ) {
+                //std::cout << priority_direction.at(j).distance << " < " << priority_direction.at(i).distance << std::endl;
+                priority_direction.swap(i, j);
+            }
+        }
+    }
+
+    //for (int k=0; k < priority_direction.length(); k++) {
+    //    std::cout << priority_direction.at(k).num << ": " << priority_direction.at(k).distance << std::endl;
+    //}
+
+    return priority_direction;
+
+}
+
+void MainWindow::moveBlankAboveP()
 {
     std::cout << "moveBlankAboveP\n";
-    coord blank_coord = this->findPCoord(" ");
-    std::cout << "blank x,y -> " << blank_coord.x << "," << blank_coord.y << std::endl;
+    std::cout << "blank x,y -> " << blank.x << "," << blank.y << std::endl;
 
-    coord temp_;
-    temp_.x = p_coord.x;
-    temp_.y = p_coord.y - 1;
-
-    // kalo si blank ada dibaris bawah 1 baris atasnya si P
-    // intinya kalo si blank blm di garis y tepat atasnya si P bakal masuk sini
-    if (blank_coord.y > temp_.y) {
-        // kalo si blank tepat di bawahnya si P
-        if (blank_coord.x == p_coord.x) {
-            if (x_direction > 0)
-                this->switchBlankToLeft(blank_coord);
-           else this->switchBlankToRight(blank_coord);
-        } else {
-            // yang ini mah si blank tinggal k atas sampe nanti sejajar dgn atasnya si P
-            this->switchBlankToUpper(blank_coord);
-        }
-        // recursive biar sampe sejajar
-        this->moveBlankAboveP(p_coord, x_direction);
-    }
-
-    // di sini si blank udah sejajar dgn baris atasnya si P, tinggal nyari kotak tepat di atasnya
-    // jadi tinggal ke kiri atau kanan
-    blank_coord = this->findPCoord(" ");
-    int tmp_x_direction = blank_coord.x - temp_.x;
-
-    // klo si blank udah tepat di atas maka tmp_x_direction = 0
-    if (tmp_x_direction == 0) {
+    if (blank.x == P.x && blank.y == P.y - 1)
         return;
-    } else if (tmp_x_direction < 0) {
-        this->switchBlankToRight(blank_coord);
-    } else if (tmp_x_direction > 0) {
-        this->switchBlankToLeft(blank_coord);
-    }
 
-    this->moveBlankAboveP(p_coord, x_direction);
+    QList <struct possible_move> pbm = this->blankPossibleMoveTo(P.x, P.y - 1);
+
+    for (int i = 0; i < pbm.length(); i++ ) {
+        if (pbm.at(i).num == 1)
+            this->swapBlankToUpper();
+        else if (pbm.at(i).num == 2)
+            this->swapBlankToUnder();
+        else if (pbm.at(i).num == 3)
+            this->swapBlankToLeft();
+        else if (pbm.at(i).num == 4)
+            this->swapBlankToRight();
+        break;
+    }
+    this->moveBlankAboveP();
+
 }
 
-void MainWindow::moveBlankLeftP(MainWindow::coord p_coord, int x_direction)
+void MainWindow::moveBlankLeftP()
 {
     std::cout << "moveBlankLeftP\n";
-    coord blank_coord = this->findPCoord(" ");
-    std::cout << "blank x,y -> " << blank_coord.x << "," << blank_coord.y << std::endl;
+    std::cout << "blank x,y -> " << blank.x << "," << blank.y << std::endl;
 
-    if (blank_coord.x > p_coord.x - 1) {
-        if (blank_coord.y == p_coord.y) {
-            this->switchBlankToUnder(blank_coord);
-        } else {
-            this->switchBlankToLeft(blank_coord);
-        }
-        // this->moveBlankLeftP(p_coord, x_direction);
-    } else if (blank_coord.x < p_coord.x -1 ) {
-        if (blank_coord.y == p_coord.y) {
-            this->switchBlankToUnder(blank_coord);
-        } else {
-            this->switchBlankToRight(blank_coord);
-        }
-    }
-
-    blank_coord = this->findPCoord(" ");
-    int tmp_y_direction = blank_coord.y - p_coord.y;
-
-    // klo si blank udah tepat di kiri maka tmp_y_direction = 0
-    if (tmp_y_direction == 0) {
+    if (blank.x == P.x - 1 && blank.y == P.y)
         return;
-    } else if (tmp_y_direction < 0) {
-        this->switchBlankToUnder(blank_coord);
-    } else if (tmp_y_direction > 0) {
-        this->switchBlankToUpper(blank_coord);
-    }
 
-    this->moveBlankLeftP(p_coord, x_direction);
+    QList <struct possible_move> pbm = this->blankPossibleMoveTo(P.x - 1, P.y);
+
+    for (int i = 0; i < pbm.length(); i++ ) {
+        if (pbm.at(i).num == 1)
+            this->swapBlankToUpper();
+        else if (pbm.at(i).num == 2)
+            this->swapBlankToUnder();
+        else if (pbm.at(i).num == 3)
+            this->swapBlankToLeft();
+        else if (pbm.at(i).num == 4)
+            this->swapBlankToRight();
+        break;
+    }
+    this->moveBlankLeftP();
 }
 
-void MainWindow::switchBlankToUpper(MainWindow::coord blank_coord)
+void MainWindow::moveBlankUnderP()
+{
+    std::cout << "moveBlankUnderP\n";
+    std::cout << "blank x,y -> " << blank.x << "," << blank.y << std::endl;
+
+    if (blank.x == P.x && blank.y == P.y + 1)
+        return;
+
+    QList <struct possible_move> pbm = this->blankPossibleMoveTo(P.x, P.y + 1);
+
+    for (int i = 0; i < pbm.length(); i++ ) {
+        if (pbm.at(i).num == 1)
+            this->swapBlankToUpper();
+        else if (pbm.at(i).num == 2)
+            this->swapBlankToUnder();
+        else if (pbm.at(i).num == 3)
+            this->swapBlankToLeft();
+        else if (pbm.at(i).num == 4)
+            this->swapBlankToRight();
+        break;
+    }
+    this->moveBlankUnderP();
+}
+
+void MainWindow::moveBlankRightP()
+{
+    std::cout << "moveBlankRightP\n";
+    std::cout << "blank x,y -> " << blank.x << "," << blank.y << std::endl;
+
+    if (blank.x == P.x + 1 && blank.y == P.y)
+        return;
+
+    QList <struct possible_move> pbm = this->blankPossibleMoveTo(P.x + 1, P.y);
+
+    for (int i = 0; i < pbm.length(); i++ ) {
+        if (pbm.at(i).num == 1)
+            this->swapBlankToUpper();
+        else if (pbm.at(i).num == 2)
+            this->swapBlankToUnder();
+        else if (pbm.at(i).num == 3)
+            this->swapBlankToLeft();
+        else if (pbm.at(i).num == 4)
+            this->swapBlankToRight();
+        break;
+    }
+    this->moveBlankRightP();
+}
+
+void MainWindow::swapBlankToUpper()
 {
     // std::cout << "swtichBlankToUpper\n";
     std::cout << "si blank gerak ke atas" << std::endl;
     coord target;
 
-    target.x = blank_coord.x;
-    target.y = blank_coord.y - 1;
+    target.x = blank.x;
+    target.y = blank.y - 1;
 
     std::cout << "target blank x,y -> " << target.x << "," << target.y << " = " << map[target.x][target.y].toStdString() << std::endl;
 
     QString temp_ = map[target.x][target.y];
     map[target.x][target.y] = " ";
-    map[blank_coord.x][blank_coord.y] = temp_;
-
+    map[blank.x][blank.y] = temp_;
+    blank = this->findPCoord(" ");
     this->printMatToConsole();
 }
 
-void MainWindow::switchBlankToLeft(MainWindow::coord blank_coord)
+void MainWindow::swapBlankToLeft()
 {
-    // std::cout << "switchBlankToLeft\n";
+    // std::cout << "swapBlankToLeft\n";
     std::cout << "si blank gerak ke kiri" << std::endl;
     coord target;
-    target.x = blank_coord.x - 1;
-    target.y = blank_coord.y;
+    target.x = blank.x - 1;
+    target.y = blank.y;
 
     std::cout << "target blank x,y -> " << target.x << "," << target.y << " = " << map[target.x][target.y].toStdString() << std::endl;
 
     QString temp_ = map[target.x][target.y];
     map[target.x][target.y] = " ";
-    map[blank_coord.x][blank_coord.y] = temp_;
-
+    map[blank.x][blank.y] = temp_;
+    blank = this->findPCoord(" ");
     this->printMatToConsole();
 }
 
-void MainWindow::switchBlankToRight(MainWindow::coord blank_coord)
+void MainWindow::swapBlankToRight()
 {
-    // std::cout << "switchBlankToRight\n";
+    // std::cout << "swapBlankToRight\n";
     std::cout << "si blank gerak ke kanan" << std::endl;
     coord target;
-    target.x = blank_coord.x + 1;
-    target.y = blank_coord.y;
+    target.x = blank.x + 1;
+    target.y = blank.y;
 
     QString temp_ = map[target.x][target.y];
     map[target.x][target.y] = " ";
-    map[blank_coord.x][blank_coord.y] = temp_;
-
+    map[blank.x][blank.y] = temp_;
+    blank = this->findPCoord(" ");
     this->printMatToConsole();
 }
 
-void MainWindow::switchBlankToUnder(MainWindow::coord blank_coord)
+void MainWindow::swapBlankToUnder()
 {
     // std::cout << "swtichBlankToUpper\n";
     std::cout << "si blank gerak ke bawah" << std::endl;
     coord target;
 
-    target.x = blank_coord.x;
-    target.y = blank_coord.y + 1;
+    target.x = blank.x;
+    target.y = blank.y + 1;
 
     std::cout << "target blank x,y -> " << target.x << "," << target.y << " = " << map[target.x][target.y].toStdString() << std::endl;
 
     QString temp_ = map[target.x][target.y];
     map[target.x][target.y] = " ";
-    map[blank_coord.x][blank_coord.y] = temp_;
-
+    map[blank.x][blank.y] = temp_;
+    blank = this->findPCoord(" ");
     this->printMatToConsole();
 }
 
-void MainWindow::switchBlankWithP(QString p)
+void MainWindow::swapBlankWithP()
 {
-    // std::cout << "switchBlankWithP\n";
-    std::cout << "si blank tukeran sama " << p.toStdString() << std::endl;
-    coord p_coord = this->findPCoord(p);
-    coord blank_coord = this->findPCoord(" ");
-
-    map[p_coord.x][p_coord.y] = " ";
-    map[blank_coord.x][blank_coord.y] = p;
+    // std::cout << "swapBlankWithP\n";
+    // std::cout << "si blank tukeran sama " << p.toStdString() << std::endl;
+    QString p = map[P.x][P.y];
+    map[P.x][P.y] = " ";
+    map[blank.x][blank.y] = p;
+    blank = this->findPCoord(" ");
     this->printMatToConsole();
+}
+
+bool MainWindow::swapBlankIsValid(int x, int y)
+{
+    QString temp_map[dimension][dimension] = map;
+    QString sw = temp_map[x][y];
+    temp_map[x][y] = " ";
+    temp_map[blank.x][blank.y] = sw;
+
+    QString key_ = "";
+
+    for(int i = 0; i < this->dimension; i++) {
+        for(int j = 0; j < this->dimension; j++) {
+            key_ += temp_map[j][i];
+        }
+    }
+
+    for (int k=0; k < history.length(); k++){
+        if (history.at(k) == key_)
+            return false;
+    }
+
+    return true;
+}
+
+void MainWindow::deleteHistoryB4()
+{
+    QString last_history = history.last();
+    std::cout << "clear history before this -> " << last_history.toStdString() << std::endl;
+    history.clear();
+    history.append(last_history);
+}
+
+void MainWindow::lockCoord(int x, int y)
+{
+    this->locked[x][y] = true;
+}
+
+void MainWindow::unlockCoord(int x, int y)
+{
+    this->locked[x][y] = false;
 }

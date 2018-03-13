@@ -6,6 +6,8 @@
 #include <iostream>
 #include "qdebug.h"
 #include <QtMath>
+#include <unistd.h>
+#include <QApplication>
 
 namespace Ui {
 class MainWindow;
@@ -47,6 +49,8 @@ private:
     QList<QLineEdit*> lineedit_list;
     static const int dimension = 3;
     QString map[dimension][dimension];
+    bool locked[dimension][dimension] = {};
+    QList<QString> history;
 
     void updateUILineEditRegex();
     void disabledAllLineEdit(bool condition);
@@ -54,24 +58,38 @@ private:
     void mapToMat();
     void printMatToConsole();
     void movePToXY(QString p, int x, int y);
-
+    void moveBlankToXY(int x, int y);
 
     struct coord {
         int x = 0;
         int y = 0;
     };
 
-    void moveBlankAboveP(struct coord p_coord, int x_direction);
-    void moveBlankLeftP(struct coord p_coord, int x_direction);
+    struct possible_move{
+        int num;
+        int distance;
+    };
+
+
+    coord blank, P;
+
+    void moveBlankAboveP();
+    void moveBlankLeftP();
+    void moveBlankUnderP();
+    void moveBlankRightP();
     struct coord findPCoord(QString p);
     int hammingDistance(struct coord a, struct coord b);
-    void switchBlankToUpper(struct coord blank_coord);
-    void switchBlankToLeft(struct coord blank_coord);
-    void switchBlankToRight(struct coord blank_coord);
-    void switchBlankToUnder(struct coord blank_coord);
-
-
-    void switchBlankWithP(QString p);
+    bool coordIsPossible(struct coord c);
+    void swapBlankToUpper();
+    void swapBlankToLeft();
+    void swapBlankToRight();
+    void swapBlankToUnder();
+    void lockCoord(int x, int y);
+    void unlockCoord(int x, int y);
+    QList<struct possible_move> blankPossibleMoveTo(int x, int y);
+    void swapBlankWithP();
+    bool swapBlankIsValid(int x, int y);
+    void deleteHistoryB4();
 };
 
 #endif // MAINWINDOW_H
